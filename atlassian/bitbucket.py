@@ -1723,14 +1723,18 @@ class Bitbucket(AtlassianRestAPI):
         url = 'rest/indexing/latest/status'
         return self.get(url)
 
-    def fork_repository(self, project, repository, new_repository):
+    def fork_repository(self, project, repository, new_repository_project=None, new_repository):
         """
-        Forks a repository within the same project.
+        Forks a repository. Defaults to within the same project.
         :param project:
         :param repository:
+        :param new_repository_project:
         :param new_repository:
         :return:
         """
+        if new_repository_project is None:
+            new_repository_project = project
+
         if not self.cloud:
             url = 'rest/api/1.0/projects/{project}/repos/{repository}'.format(project=project,
                                                                               repository=repository)
@@ -1741,7 +1745,7 @@ class Bitbucket(AtlassianRestAPI):
         if new_repository is not None:
             body['name'] = new_repository
         if new_repository is not None:
-            body['project'] = {'key': project}
+            body['project'] = {'key': new_repository_project}
         return self.post(url, data=body)
 
     def get_users_info(self, user_filter=None, start=0, limit=25):
