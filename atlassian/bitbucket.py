@@ -1725,11 +1725,11 @@ class Bitbucket(AtlassianRestAPI):
 
     def fork_repository(self, project, repository, new_repository, new_repository_project=None):
         """
-        Forks a repository. Defaults to within the same project.
+        Forks a repository.
         :param project:
         :param repository:
         :param new_repository:
-        :param new_repository_project:
+        :param new_repository_project: OPTIONAL: project to create new_repository fork in. Default: in the same project
         :return:
         """
         if new_repository_project is None:
