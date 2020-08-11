@@ -1,8 +1,7 @@
 # coding=utf-8
-import json
 import logging
-
 import requests
+from json import dumps
 from oauthlib.oauth1 import SIGNATURE_RSA
 from requests_oauthlib import OAuth1
 from six.moves.urllib.parse import urlencode
@@ -101,7 +100,7 @@ class AtlassianRestAPI(object):
         message = "curl --silent -X {method} -H {headers} {data} '{url}'".format(
             method=method,
             headers=' -H '.join(["'{0}: {1}'".format(key, value) for key, value in headers.items()]),
-            data='' if not data else "--data '{0}'".format(json.dumps(data)),
+            data='' if not data else "--data '{0}'".format(dumps(data)),
             url=url)
         log.log(level=level, msg=message)
 
@@ -115,13 +114,14 @@ class AtlassianRestAPI(object):
             url_link += '/'
         return url_link
 
-    def request(self, method='GET', path='/', data=None, flags=None, params=None, headers=None,
+    def request(self, method='GET', path='/', data=None, json=None, flags=None, params=None, headers=None,
                 files=None, trailing=None):
         """
 
         :param method:
         :param path:
         :param data:
+        :param json:
         :param flags:
         :param params:
         :param headers:
@@ -136,10 +136,12 @@ class AtlassianRestAPI(object):
             url += urlencode(params or {})
         if flags:
             url += ('&' if params else '') + '&'.join(flags or [])
+        json_dump = None
         if files is None:
-            data = None if not data else json.dumps(data)
+            data = None if not data else dumps(data)
+            json_dump = None if not json else dumps(json)
         self.log_curl_debug(method=method, url=url, headers=headers,
-                            data=data)
+                            data=data if data else json_dump)
 
         headers = headers or self.default_headers
         response = self._session.request(
@@ -147,6 +149,7 @@ class AtlassianRestAPI(object):
             url=url,
             headers=headers,
             data=data,
+            json=json,
             timeout=self.timeout,
             verify=self.verify_ssl,
             files=files,
@@ -188,8 +191,8 @@ class AtlassianRestAPI(object):
                 log.error(e)
                 return response.text
 
-    def post(self, path, data=None, headers=None, files=None, params=None, trailing=None):
-        response = self.request('POST', path=path, data=data, headers=headers, files=files, params=params,
+    def post(self, path, data=None, json=None, headers=None, files=None, params=None, trailing=None):
+        response = self.request('POST', path=path, data=data, json=json, headers=headers, files=files, params=params,
                                 trailing=trailing)
         if self.advanced_mode:
             return response

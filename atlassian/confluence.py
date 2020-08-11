@@ -85,6 +85,32 @@ class Confluence(AtlassianRestAPI):
 
         return response.get('results')
 
+    def get_child_title_list(self, page_id, type='page', start=None, limit=None):
+        """
+        Find a list of Child title
+        :param page_id: A string containing the id of the type content container.
+        :param type:
+        :param start: OPTIONAL: The start point of the collection to return. Default: None (0).
+        :param limit: OPTIONAL: how many items should be returned after the start index. Default: Site limit 200.
+        :return:
+        """
+        child_page = self.get_page_child_by_type(page_id, type, start, limit)
+        child_title_list = [child['title'] for child in child_page]
+        return child_title_list
+
+    def get_child_id_list(self, page_id, type='page', start=None, limit=None):
+        """
+        Find a list of Child id
+        :param page_id: A string containing the id of the type content container.
+        :param type:
+        :param start: OPTIONAL: The start point of the collection to return. Default: None (0).
+        :param limit: OPTIONAL: how many items should be returned after the start index. Default: Site limit 200.
+        :return:
+        """
+        child_page = self.get_page_child_by_type(page_id, type, start, limit)
+        child_id_list = [child['id'] for child in child_page]
+        return child_id_list
+
     def get_child_pages(self, page_id):
         """
         Get child pages for the provided page_id
@@ -111,11 +137,26 @@ class Confluence(AtlassianRestAPI):
         parent_content_id = None
         try:
             parent_content_id = (
-                        (self.get_page_by_id(page_id=page_id, expand='ancestors').get('ancestors') or {})[-1].get(
-                            'id') or None)
+                (self.get_page_by_id(page_id=page_id, expand='ancestors').get('ancestors') or {})[-1].get(
+                    'id') or None)
         except Exception as e:
             log.error(e)
         return parent_content_id
+
+    def get_parent_content_title(self, page_id):
+        """
+        Provide parent content title from page id
+        :type page_id: str
+        :return:
+        """
+        parent_content_title = None
+        try:
+            parent_content_title = (
+                        (self.get_page_by_id(page_id=page_id, expand='ancestors').get('ancestors') or {})[-1].get(
+                            'title') or None)
+        except Exception as e:
+            log.error(e)
+        return parent_content_title
 
     def get_page_space(self, page_id):
         """
@@ -1255,6 +1296,44 @@ class Confluence(AtlassianRestAPI):
 
         return response
 
+    def update_page_property(self, page_id, data):
+        """
+        Update the page (content) property.
+        Use json data or independent keys
+        :param page_id: content_id format
+        :data: property data in json format
+        :return:
+        """
+        url = 'rest/api/content/{page_id}/property/{key}'.format(page_id=page_id, key=data.get("key"))
+        try:
+            response = self.put(path=url, data=data)
+        except HTTPError as e:
+            if e.response.status_code == 400:
+                raise ApiValueError(
+                    "The given property has a different content id to the one in the "
+                    "path, or the content already has a value with the given key, or "
+                    "the value is missing, or the value is too long",
+                    reason=e)
+            if e.response.status_code == 403:
+                raise ApiPermissionError(
+                    "The user does not have permission to "
+                    "edit the content with the given id",
+                    reason=e)
+            if e.response.status_code == 404:
+                raise ApiNotFoundError(
+                    "There is no content with the given id, or no property with the given key, "
+                    "or if the calling user does not have permission to view the content.",
+                    reason=e
+                )
+            if e.response.status_code == 409:
+                raise ApiConflictError(
+                    "The given version is does not match the expected "
+                    "target version of the updated property", reason=e)
+            if e.response.status_code == 413:
+                raise ApiValueError("The value is too long", reason=e)
+            raise
+        return response
+
     def delete_page_property(self, page_id, page_property):
         """
         Delete the page (content) property e.g. delete key of hash
@@ -1287,7 +1366,6 @@ class Confluence(AtlassianRestAPI):
         """
         url = 'rest/api/content/{page_id}/property/{key}'.format(page_id=page_id,
                                                                  key=str(page_property_key))
-
         try:
             response = self.get(path=url)
         except HTTPError as e:
@@ -1939,6 +2017,15 @@ class Confluence(AtlassianRestAPI):
         url = 'rest/user-profile/1.0/{}/avatar/default'.format(user_key)
         return self.get(url)
 
+    def add_user(self, email, fullname, username, password):
+        """
+        That method related to creating user via json rpc for Confluence Server
+        """
+        params = {"email": email, "fullname": fullname, "name": username}
+        url = 'rpc/json-rpc/confluenceservice-v2'
+        data = {"jsonrpc": "2.0", "method": "addUser", "params": [params, password]}
+        self.post(url, data=data)
+
     def add_user_to_group(self, username, group_name):
         """
         Add given user to a group
@@ -1951,6 +2038,26 @@ class Confluence(AtlassianRestAPI):
         params = {'groupname': group_name}
         data = {'name': username}
         return self.post(url, params=params, data=data)
+
+    def add_space_permissions(self, space_key, subject_type, subject_id, operation_key, operation_target):
+        """
+        Add permissions to a space
+
+        :param space_key: str
+        :param subject_type: str
+        :param subject_id: str
+        :param operation_key: str
+        :param operation_target: str
+        :return: Current permissions of space
+        """
+        url = 'rest/api/space/{}/permission'.format(space_key)
+        data = {
+            'subject': {'type': subject_type, 'identifier': subject_id},
+            'operation': {'key': operation_key, 'target': operation_target},
+            '_links': {}
+        }
+
+        return self.post(url, data=data, headers=self.experimental_headers)
 
     def get_space_permissions(self, space_key):
         """

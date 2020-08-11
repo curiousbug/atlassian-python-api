@@ -530,12 +530,32 @@ class Jira(AtlassianRestAPI):
         :param expand: str
         :return: data of project permission scheme
         """
-        if expand is None:
-            url = 'rest/api/2/project/{}/permissionscheme'.format(project_id_or_key)
-        else:
-            url = 'rest/api/2/project/{0}/permissionscheme?expand={1}'.format(project_id_or_key, expand)
+        url = 'rest/api/2/project/{}/permissionscheme'.format(project_id_or_key)
+        params = {}
+        if expand:
+            params['expand'] = expand
+        return self.get(url, params=params)
 
+    def get_notification_schemes(self):
+        """
+        Returns a paginated list of notification schemes
+        """
+        url = 'rest/api/2/notificationscheme'
         return self.get(url)
+
+    def get_notification_scheme(self, notification_scheme_id, expand=None):
+        """
+        Returns a full representation of the notification scheme for the given id.
+        Use 'expand' to get details
+        :param notification_scheme_id: Id of scheme u wanna work with
+        :param expand: str
+        :return: full representation of the notification scheme for the given id
+        """
+        url = 'rest/api/2/notificationscheme/{}'.format(notification_scheme_id)
+        params = {}
+        if expand:
+            params['expand'] = expand
+        return self.get(url, params=params)
 
     def create_issue_type(self, name, description='', type='standard'):
         """
@@ -1285,7 +1305,7 @@ class Jira(AtlassianRestAPI):
         url = 'rest/api/2/issue/{issue_key}/transitions'.format(issue_key=issue_key)
         transition_id = self.get_transition_id_to_status_name(issue_key, status_name)
         data = {'transition': {'id': transition_id}}
-        if fields != None:
+        if fields is not None:
             data['fields'] = fields
         return self.post(url, data=data)
 
@@ -1737,15 +1757,20 @@ class Jira(AtlassianRestAPI):
 
     # api/2/project/{projectKeyOrId}/priorityscheme
     # Resource for associating priority schemes and projects.
-    def get_priority_scheme_of_project(self, project_key_or_id):
+    def get_priority_scheme_of_project(self, project_key_or_id, expand=None):
         """
         Gets a full representation of a priority scheme in JSON format used by specified project.
+        Resource for associating priority scheme schemes and projects.
         User must be global administrator or project administrator.
         :param project_key_or_id:
+        :param expand: notificationSchemeEvents,user,group,projectRole,field,all
         :return:
         """
-        url = 'rest/api/2/project/{}/priorityscheme'.format(project_key_or_id)
-        return self.get(url)
+        params = {}
+        if expand:
+            params["expand"] = expand
+        url = "rest/api/2/project/{}/priorityscheme".format(project_key_or_id)
+        return self.get(url, params=params)
 
     def assign_priority_scheme_for_project(self, project_key_or_id, priority_scheme_id):
         """
@@ -1761,21 +1786,6 @@ class Jira(AtlassianRestAPI):
         url = "rest/api/2/project/{projectKeyOrId}/priorityscheme".format(projectKeyOrId=project_key_or_id)
         data = {"id": priority_scheme_id}
         return self.put(url, data=data)
-
-    def get_priority_scheme_of_project(self, project_key_or_id, expand=None):
-        """
-        Resource for associating notification schemes and projects.
-        Gets a notification scheme associated with the project.
-        Follow the documentation of /notificationscheme/{id} resource for all details about returned value.
-        :param project_key_or_id:
-        :param expand: notificationSchemeEvents,user,group,projectRole,field,all
-        :return:
-        """
-        params = {}
-        if expand:
-            params["expand"] = expand
-        url = "rest/api/2/project/{}/notificationscheme".format(project_key_or_id)
-        return self.get(url, params=params)
 
     # Application properties
     def get_property(self, key=None, permission_level=None, key_filter=None):
