@@ -1715,14 +1715,18 @@ class Bitbucket(AtlassianRestAPI):
         url = 'rest/indexing/latest/status'
         return self.get(url)
 
-    def fork_repository(self, project, repository, new_repository):
+    def fork_repository(self, project, repository, new_repository, new_repository_project=None):
         """
-        Forks a repository within the same project.
+        Forks a repository.
         :param project:
         :param repository:
         :param new_repository:
+        :param new_repository_project: OPTIONAL: project to create new_repository fork in. Default: in the same project
         :return:
         """
+        if new_repository_project is None:
+            new_repository_project = project
+
         if not self.cloud:
             url = 'rest/api/1.0/projects/{project}/repos/{repository}'.format(project=project,
                                                                               repository=repository)
@@ -1733,7 +1737,7 @@ class Bitbucket(AtlassianRestAPI):
         if new_repository is not None:
             body['name'] = new_repository
         if new_repository is not None:
-            body['project'] = {'key': project}
+            body['project'] = {'key': new_repository_project}
         return self.post(url, data=body)
 
     def get_current_license(self):
